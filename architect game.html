@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>可愛風2D創世神</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #e0f7fa;
+            font-family: 'Nunito', sans-serif;
+            touch-action: none;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        #toolbar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 20px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            pointer-events: auto;
+            overflow-x: auto;
+            max-width: 90%;
+            transition: bottom 0.3s ease-in-out;
+            align-items: center;
+        }
+
+        #toolbar.hidden {
+            display: none;
+        }
+
+        .tool-btn {
+            width: 50px;
+            height: 50px;
+            border: 3px solid #ddd;
+            border-radius: 12px;
+            background: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            transition: transform 0.1s, border-color 0.2s;
+            flex-shrink: 0;
+        }
+
+        .tool-btn.active {
+            border-color: #ff9800;
+            transform: scale(1.1);
+            background: #fff3e0;
+        }
+
+        .tool-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 旋轉按鈕 */
+        #rotate-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #2196f3;
+            border-radius: 50%;
+            background: #e3f2fd;
+            color: #2196f3;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            margin-left: 10px;
+            flex-shrink: 0;
+            transition: transform 0.2s;
+        }
+        
+        #rotate-btn:active {
+            transform: rotate(90deg);
+        }
+
+        #mode-switch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #4caf50;
+            border-radius: 50%;
+            border: 4px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            color: white;
+            z-index: 100;
+        }
+
+        #mode-switch.playing {
+            background: #f44336;
+        }
+
+        #message {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        #mobile-controls {
+            display: none; 
+            pointer-events: auto;
+        }
+
+        .control-btn {
+            position: absolute;
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            user-select: none;
+            border: 2px solid rgba(0,0,0,0.1);
+        }
+
+        #btn-left { bottom: 30px; left: 20px; }
+        #btn-right { bottom: 30px; left: 100px; }
+        #btn-jump { bottom: 30px; right: 30px; background: rgba(255, 200, 200, 0.6); }
+
+        @media (max-width: 768px) {
+            #mobile-controls.active {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="ui-layer">
+        <div id="message">提示訊息</div>
+
+        <div id="mode-switch" onclick="toggleMode()">▶️</div>
+
+        <div id="toolbar">
+            <div class="tool-btn active" onclick="selectTool('ground')" title="方塊">🟫</div>
+            <div class="tool-btn" onclick="selectTool('player')" title="主角">🟡</div>
+            <div class="tool-btn" onclick="selectTool('spike')" title="尖刺">🔺</div>
+            <div class="tool-btn" onclick="selectTool('conveyor')" title="輸送帶">⏩</div>
+            <div class="tool-btn" onclick="selectTool('spring')" title="跳板">⏫</div>
+            <div class="tool-btn" onclick="selectTool('pushbox')" title="可推動方塊">📦</div>
+            <div class="tool-btn" onclick="selectTool('monster')" title="怪物">👾</div>
+            <div class="tool-btn" onclick="selectTool('eraser')" title="橡皮擦">❌</div>
+            
+            <div id="rotate-btn" onclick="toggleBuildDir()" title="旋轉方向 (R)">➡️</div>
+        </div>
+
+        <div id="mobile-controls">
+            <div id="btn-left" class="control-btn">⬅️</div>
+            <div id="btn-right" class="control-btn">➡️</div>
+            <div id="btn-jump" class="control-btn">⬆️</div>
+        </div>
+    </div>
+
+<script>
+/**
+ * 遊戲核心邏輯
+ */
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// 全局設定
+const TILE_SIZE = 60;
+const GRAVITY = 0.6;
+const TERMINAL_VELOCITY = 15;
+
+// 遊戲狀態
+let mode = 'build';
+let tiles = {}; 
+let dynamicObjects = []; 
+let particles = []; 
+
+let camera = { x: 0, y: 0 };
+let currentTool = 'ground';
+// 方向系統: 0:右, 1:下, 2:左, 3:上
+let buildDir = 0; 
+const DIR_NAMES = ['right', 'down', 'left', 'up'];
+
+let isDraggingCamera = false;
+let lastMousePos = { x: 0, y: 0 };
+
+let keys = { ArrowUp: false, ArrowLeft: false, ArrowRight: false, ArrowDown: false, KeyW: false, KeyA: false, KeyD: false, KeyS: false };
+let touchInputs = { left: false, right: false, jump: false };
+
+let savedMapData = null;
+
+// 資源顏色
+const COLORS = {
+    sky: '#e0f7fa',
+    ground: '#8d6e63',
+    grass: '#81c784',
+    spike: '#bdbdbd',
+    conveyor: '#424242',
+    spring: '#66bb6a', // 綠色跳板
+    pushbox: '#ffcc80',
+    monster: '#b39ddb',
+    monsterEyes: '#d50000',
+    playerMain: '#fdd835',
+    playerStroke: '#fbc02d'
+};
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// =========================================
+// 繪圖工具函數
+// =========================================
+
+function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
+function drawTileGraphic(ctx, fullType, x, y, w, h, isGrassBlocked = false) {
+    let type = fullType;
+    let rotation = 0; // Radians
+
+    // 解析方向
+    if (fullType.includes('_')) {
+        let parts = fullType.split('_');
+        type = parts[0];
+        let dirStr = parts[1];
+        let dirIndex = DIR_NAMES.indexOf(dirStr);
+        if (dirIndex !== -1) {
+            rotation = dirIndex * (Math.PI / 2);
+        }
+    }
+
+    if (type === 'ground') {
+        ctx.fillStyle = COLORS.ground;
+        drawRoundedRect(ctx, x, y, w, h, 4);
+        ctx.fill();
+        // 只有當上方沒有方塊時才畫草
+        if (!isGrassBlocked) {
+            ctx.fillStyle = COLORS.grass;
+            ctx.fillRect(x, y, w, 10);
+        }
+    } else if (type === 'spike') {
+        ctx.fillStyle = COLORS.spike;
+        ctx.beginPath();
+        ctx.moveTo(x, y + h);
+        ctx.lineTo(x + w/2, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.fill();
+    } else if (type === 'conveyor') {
+        ctx.save();
+        ctx.translate(x + w/2, y + h/2);
+        ctx.rotate(rotation);
+        ctx.translate(-w/2, -h/2);
+
+        ctx.beginPath();
+        drawRoundedRect(ctx, 0, 0, w, h, 0);
+        ctx.clip();
+
+        ctx.fillStyle = COLORS.conveyor;
+        ctx.fillRect(0, 0, w, h);
+        
+        ctx.fillStyle = '#9e9e9e';
+        let speed = 2;
+        let offset = (Date.now() * 0.1 * speed) % w;
+        if (offset < 0) offset += w;
+
+        for(let i=-1; i<2; i++) {
+             let lineX = offset + (i * w);
+             ctx.save();
+             ctx.translate(lineX, h/2);
+             ctx.fillStyle = '#ffffff';
+             ctx.beginPath();
+             ctx.moveTo(-5, -10);
+             ctx.lineTo(5, 0);
+             ctx.lineTo(-5, 10);
+             ctx.lineTo(-5, 5);
+             ctx.lineTo(-15, 5);
+             ctx.lineTo(-15, -5);
+             ctx.lineTo(-5, -5);
+             ctx.fill();
+             ctx.restore();
+        }
+        ctx.strokeStyle = '#616161';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, 0, w, h);
+        ctx.restore();
+
+    } else if (type === 'spring') {
+        ctx.save();
+        ctx.translate(x + w/2, y + h/2);
+        ctx.rotate(rotation);
+        ctx.translate(-w/2, -h/2);
+
+        // 畫向右的跳板 (底部在左邊，彈力向右)
+        ctx.fillStyle = '#558b2f'; // 深綠底座
+        ctx.fillRect(0, 0, w/3, h);
+        
+        ctx.fillStyle = COLORS.spring; // 淺綠彈性部
+        ctx.fillRect(w/3, 5, w*0.6, h-10);
+        
+        ctx.strokeStyle = '#2e7d32';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(w/3, 0);
+        ctx.lineTo(w/3, h);
+        ctx.stroke();
+        
+        ctx.restore();
+
+    } else if (type === 'pushbox') {
+        ctx.fillStyle = COLORS.pushbox;
+        ctx.strokeStyle = '#ef6c00';
+        ctx.lineWidth = 4;
+        drawRoundedRect(ctx, x, y, w, h, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#ffe0b2';
+        ctx.beginPath();
+        ctx.arc(x+w/2, y+h/2, 10, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
+// =========================================
+// 類別定義
+// =========================================
+
+class Entity {
+    constructor(x, y, type) {
+        this.x = x;
+        this.y = y;
+        this.w = TILE_SIZE;
+        this.h = TILE_SIZE;
+        this.vx = 0;
+        this.vy = 0;
+        this.type = type;
+        this.isGrounded = false;
+        this.toRemove = false;
+        this.facingRight = true;
+    }
+
+    update() {
+        this.vy += GRAVITY;
+        if (this.vy > TERMINAL_VELOCITY) this.vy = TERMINAL_VELOCITY;
+    }
+
+    draw(ctx) {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x, this.y, this.w, this.h);
+    }
+
+    getGridPos() {
+        return {
+            c: Math.floor((this.x + this.w/2) / TILE_SIZE),
+            r: Math.floor((this.y + this.h/2) / TILE_SIZE)
+        };
+    }
+}
+
+class Player extends Entity {
+    constructor(x, y) {
+        super(x, y, 'player');
+        this.w = TILE_SIZE * 0.7; 
+        this.h = TILE_SIZE * 0.7;
+        this.x += (TILE_SIZE - this.w) / 2;
+        this.y += (TILE_SIZE - this.h);
+        
+        this.speed = 6;
+        this.jumpForce = -14;
+        this.canDoubleJump = false;
+        this.jumpCount = 0;
+    }
+
+    update() {
+        let moveLeft = keys.ArrowLeft || keys.KeyA || touchInputs.left;
+        let moveRight = keys.ArrowRight || keys.KeyD || touchInputs.right;
+        
+        // 讓物理引擎處理水平速度，這裡只設定意圖
+        if (moveLeft) {
+            this.vx = -this.speed;
+            this.facingRight = false;
+        } else if (moveRight) {
+            this.vx = this.speed;
+            this.facingRight = true;
+        } else {
+             this.vx = 0;
+        }
+
+        super.update();
+
+        if (this.y > 2000) die();
+    }
+
+    jump() {
+        if (this.isGrounded) {
+            this.vy = this.jumpForce;
+            this.isGrounded = false;
+            this.jumpCount = 1;
+            this.canDoubleJump = true;
+            createParticles(this.x + this.w/2, this.y + this.h, COLORS.playerMain, 5);
+        } else if (this.canDoubleJump && this.jumpCount < 2) {
+            this.vy = this.jumpForce * 0.9;
+            this.jumpCount = 2;
+            this.canDoubleJump = false;
+            createParticles(this.x + this.w/2, this.y + this.h, '#fff', 5);
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x + this.w/2, this.y + this.h/2);
+        
+        // 只有在真正遊玩且未落地時才做擠壓動畫
+        if (!this.isGrounded && mode === 'play') {
+            ctx.scale(0.9, 1.1);
+        } else if (Math.abs(this.vx) > 0.1 && mode === 'play') {
+            let bounce = Math.sin(Date.now() / 50) * 0.1;
+            ctx.scale(1 + bounce, 1 - bounce);
+        }
+
+        ctx.fillStyle = COLORS.playerMain;
+        ctx.beginPath();
+        ctx.arc(0, 0, this.w/2, 0, Math.PI*2);
+        ctx.fill();
+        ctx.strokeStyle = COLORS.playerStroke;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        let faceX = this.facingRight ? 4 : -4;
+
+        ctx.fillStyle = '#3e2723';
+        ctx.beginPath();
+        ctx.arc(faceX - 6, -4, 5, 0, Math.PI*2); 
+        ctx.arc(faceX + 6, -4, 5, 0, Math.PI*2); 
+        ctx.fill();
+
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(faceX - 4, -6, 2, 0, Math.PI*2);
+        ctx.arc(faceX + 8, -6, 2, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffab91'; 
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.arc(faceX - 10, 5, 4, 0, Math.PI*2);
+        ctx.arc(faceX + 10, 5, 4, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+
+        ctx.strokeStyle = '#3e2723';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(faceX, 5, 3, 0, Math.PI); 
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+class Monster extends Entity {
+    constructor(x, y, dir = -1) {
+        super(x, y, 'monster');
+        this.speed = 2;
+        this.dir = (Math.abs(dir) !== 1) ? 1 : dir;
+        this.detectRange = TILE_SIZE * 8;
+        this.activateTime = 0; // 啟動時間戳記
+    }
+
+    update() {
+        super.update();
+        
+        // 0.5 秒延遲判斷
+        if (mode === 'play' && (Date.now() - this.activateTime < 500)) {
+            this.vx = 0;
+            return;
+        }
+        
+        const player = dynamicObjects.find(o => o.type === 'player');
+        if (player) {
+            let dx = player.x - this.x;
+            let dist = Math.sqrt(dx*dx + (player.y - this.y)*(player.y - this.y));
+
+            if (dist < this.detectRange) {
+                this.vx = (dx > 0 ? 1 : -1) * this.speed;
+            } else {
+                this.vx *= 0.9;
+            }
+        }
+        
+        if (Math.abs(this.vx) > 0.1) {
+            this.dir = this.vx > 0 ? 1 : -1;
+        }
+    }
+
+    draw(ctx) {
+        ctx.save();
+        ctx.translate(this.x + this.w/2, this.y + this.h/2);
+        
+        let wobble = 0;
+        if (mode === 'play') wobble = Math.sin(Date.now() / 100) * 5;
+        
+        ctx.fillStyle = COLORS.monster;
+        ctx.beginPath();
+        ctx.moveTo(-this.w/2, this.h/2);
+        ctx.quadraticCurveTo(-this.w/2 + wobble, -this.h/2, 0, -this.h/2);
+        ctx.quadraticCurveTo(this.w/2 + wobble, -this.h/2, this.w/2, this.h/2);
+        ctx.fill();
+
+        ctx.fillStyle = COLORS.monsterEyes;
+        let eyeX = this.dir * 6;
+        
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(eyeX - 10, -5);
+        ctx.lineTo(eyeX - 2, 0);
+        ctx.moveTo(eyeX + 2, 0);
+        ctx.lineTo(eyeX + 10, -5);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(eyeX - 6, 5, 3, 0, Math.PI*2);
+        ctx.arc(eyeX + 6, 5, 3, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+class PushBlock extends Entity {
+    constructor(x, y) {
+        super(x, y, 'pushbox');
+        this.friction = 0.8; 
+    }
+
+    update() {
+        this.vy += GRAVITY;
+        this.vx *= this.friction;
+    }
+
+    draw(ctx) {
+        drawTileGraphic(ctx, 'pushbox', this.x, this.y, this.w, this.h);
+    }
+}
+
+class Particle {
+    constructor(x, y, color, size, speed = 1) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        let angle = Math.random() * Math.PI * 2;
+        let v = Math.random() * 5 * speed + 2;
+        this.vx = Math.cos(angle) * v;
+        this.vy = Math.sin(angle) * v;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.03 + 0.02;
+        this.size = size || (Math.random() * 5 + 3);
+    }
+
+    update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+        this.size *= 0.95;
+    }
+
+    draw(ctx) {
+        ctx.globalAlpha = Math.max(0, this.life);
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
+    }
+}
+
+// =========================================
+// 遊戲邏輯
+// =========================================
+
+function createParticles(x, y, color, count, speed = 1) {
+    for(let i=0; i<count; i++) {
+        particles.push(new Particle(x, y, color, null, speed));
+    }
+}
+
+function createExplosion(x, y, color) {
+    particles.push({
+        x: x, y: y, type: 'ring', size: 10, life: 1, color: color,
+        update: function() { this.size += 5; this.life -= 0.05; },
+        draw: function(ctx) {
+            ctx.globalAlpha = Math.max(0, this.life);
+            ctx.strokeStyle = this.color;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+        }
+    });
+    createParticles(x, y, color, 20, 1.5);
+    createParticles(x, y, '#fff', 10, 1);
+}
+
+function getKey(c, r) {
+    return `${c},${r}`;
+}
+
+function getGridFromKey(key) {
+    const parts = key.split(',');
+    return { c: parseInt(parts[0]), r: parseInt(parts[1]) };
+}
+
+// 通用的 AABB 碰撞檢測，返回碰撞的物件或方塊資訊
+function checkCollision(entity, dx, dy) {
+    let newX = entity.x + dx;
+    let newY = entity.y + dy;
+
+    // 收縮邊界邏輯 (Narrow Collision)
+    // 用於垂直檢測時，忽略極小的側面重疊，防止「牆壁黏滯」或「方塊堆疊」Bug
+    let checkX = newX;
+    let checkW = entity.w;
+    if (dx === 0 && dy !== 0) {
+        let margin = 4; // 縮小偵測範圍，避免邊緣誤觸
+        checkX += margin;
+        checkW -= margin * 2;
+    }
+
+    let startCol = Math.floor(checkX / TILE_SIZE);
+    let endCol = Math.floor((checkX + checkW - 0.1) / TILE_SIZE);
+    let startRow = Math.floor(newY / TILE_SIZE);
+    let endRow = Math.floor((newY + entity.h - 0.1) / TILE_SIZE);
+
+    // 1. 地形碰撞
+    for (let c = startCol; c <= endCol; c++) {
+        for (let r = startRow; r <= endRow; r++) {
+            let tileData = tiles[getKey(c, r)];
+            if (tileData) {
+                let type = tileData.split('_')[0];
+                
+                if (['ground', 'conveyor', 'spring', 'pushbox'].includes(type)) {
+                    return { solid: true, type: type, fullType: tileData, c, r };
+                }
+                if (type === 'spike' && mode === 'play') {
+                    let spikeX = c * TILE_SIZE + 10;
+                    let spikeY = r * TILE_SIZE + 20;
+                    let spikeW = TILE_SIZE - 20;
+                    let spikeH = TILE_SIZE - 20;
+                    
+                    if (newX < spikeX + spikeW && newX + entity.w > spikeX &&
+                        newY < spikeY + spikeH && newY + entity.h > spikeY) {
+                        if (entity.type === 'player') die();
+                    }
+                }
+            }
+        }
+    }
+    
+    // 2. 實體碰撞 (箱子與箱子，玩家與箱子，怪物與箱子)
+    // 加入 monster 檢查，確保怪物不會穿過箱子
+    if (entity.type === 'player' || entity.type === 'pushbox' || entity.type === 'monster') {
+        for (let other of dynamicObjects) {
+            if (other === entity) continue;
+            if (other.toRemove) continue;
+            
+            // 只有碰撞箱子才有物理推動 (或阻擋)
+            if (other.type !== 'pushbox') continue;
+
+            // 使用收縮後的 X 範圍進行垂直檢測
+            if (checkX < other.x + other.w && checkX + checkW > other.x &&
+                newY < other.y + other.h && newY + entity.h > other.y) {
+                return { solid: true, type: 'entity_box', entity: other };
+            }
+        }
+    }
+    return null;
+}
+
+function updatePhysics() {
+    let player = dynamicObjects.find(o => o.type === 'player');
+
+    // --- 戰鬥判定 (優先處理) ---
+    if (player) {
+        dynamicObjects.forEach(monster => {
+            if (monster.type === 'monster' && !monster.toRemove) {
+                // 簡單 AABB 預判
+                if (player.x < monster.x + monster.w &&
+                    player.x + player.w > monster.x &&
+                    player.y < monster.y + monster.h &&
+                    player.y + player.h > monster.y) {
+                    
+                    // 踩踏判定
+                    if (player.vy >= -1 && (player.y + player.h) < (monster.y + monster.h * 0.6)) {
+                        monster.toRemove = true;
+                        player.vy = -10; // 彈跳
+                        createExplosion(monster.x + monster.w/2, monster.y + monster.h/2, COLORS.monster);
+                        return; // 避免同時觸發死亡
+                    } else {
+                        die();
+                    }
+                }
+            }
+        });
+    }
+    
+    dynamicObjects.forEach(obj => {
+        if (obj.toRemove) return;
+
+        // --- X 軸移動 (含連鎖推箱子) ---
+        let colX = checkCollision(obj, obj.vx, 0);
+        
+        if (colX && colX.solid) {
+            let pushed = false;
+
+            // 連鎖推箱子邏輯 (僅玩家)
+            if (obj.type === 'player' && colX.type === 'entity_box') {
+                // 尋找連鎖的箱子
+                let stack = [];
+                let currBox = colX.entity;
+                let blocked = false;
+                
+                // 預判方向
+                let pushDir = obj.vx > 0 ? 1 : -1;
+                
+                // 收集所有連在一起的箱子
+                for(let i=0; i<5; i++) {
+                    if (!stack.includes(currBox)) {
+                         stack.push(currBox);
+                    }
+                    
+                    // 檢查這個箱子前方是否有障礙物
+                    let nextCol = checkCollision(currBox, pushDir * (TILE_SIZE/2), 0); 
+                    
+                    if (nextCol && nextCol.solid) {
+                        if (nextCol.type === 'entity_box') {
+                            currBox = nextCol.entity; // 繼續檢查下一個箱子
+                        } else {
+                            blocked = true; // 撞牆，整排卡住
+                            break; 
+                        }
+                    } else {
+                        break; // 前方空氣，可推
+                    }
+                }
+
+                if (!blocked && stack.length > 0) {
+                    // 計算推動速度 (箱子越多越慢)
+                    let pushSpeed = obj.vx / (stack.length + 0.8); 
+                    
+                    // 移動所有箱子
+                    stack.forEach(b => b.x += pushSpeed);
+                    // 玩家也稍微移動
+                    obj.x += pushSpeed;
+                    pushed = true;
+                }
+            }
+
+            // 垂直輸送帶 (牆壁效果)
+            if (!pushed && colX.type === 'conveyor') {
+                if (colX.fullType.includes('up')) {
+                    obj.vy = -4; 
+                } else if (colX.fullType.includes('down')) {
+                    obj.vy = 4; 
+                }
+                obj.vx = 0; // 撞牆停止
+            } else if (!pushed) {
+                obj.vx = 0; // 普通撞牆 (怪物碰到箱子也會停在這)
+            }
+        } else {
+            obj.x += obj.vx;
+        }
+
+        // --- Y 軸移動 ---
+        obj.isGrounded = false;
+        let colY = checkCollision(obj, 0, obj.vy);
+        
+        if (colY && (colY.solid || colY.type === 'entity_box')) {
+            if (obj.vy > 0) { // 落地
+                obj.isGrounded = true;
+                
+                // 位置修正
+                if(colY.type !== 'entity_box') {
+                     obj.y = colY.r * TILE_SIZE - obj.h;
+                } else {
+                     obj.y = colY.entity.y - obj.h;
+                }
+                
+                if (obj.type === 'player') {
+                    obj.jumpCount = 0;
+                    obj.canDoubleJump = true;
+                }
+
+                // 水平輸送帶
+                if (colY.type === 'conveyor') {
+                    if (colY.fullType.includes('right')) obj.x += 3;
+                    if (colY.fullType.includes('left')) obj.x -= 3;
+                }
+
+                // 跳板邏輯 (支援方向)
+                if (colY.type === 'spring') {
+                    let sDir = 'up';
+                    if (colY.fullType.includes('_')) sDir = colY.fullType.split('_')[1];
+                    
+                    obj.isGrounded = false;
+                    
+                    if (sDir === 'up') { obj.vy = -22; }
+                    else if (sDir === 'down') { obj.vy = 22; } // 往下彈
+                    else if (sDir === 'left') { obj.vx = -20; obj.vy = -10; } // 向左彈射
+                    else if (sDir === 'right') { obj.vx = 20; obj.vy = -10; } // 向右彈射
+                    
+                    createParticles(obj.x + obj.w/2, obj.y + obj.h, COLORS.spring, 8);
+                } else {
+                    obj.vy = 0;
+                }
+            } else if (obj.vy < 0) { // 頂頭
+                obj.vy = 0;
+                if(colY.type !== 'entity_box') {
+                    obj.y = (colY.r + 1) * TILE_SIZE;
+                } else {
+                    obj.y = colY.entity.y + colY.entity.h;
+                }
+            }
+        } else {
+            obj.y += obj.vy;
+        }
+    });
+}
+
+function die() {
+    const player = dynamicObjects.find(o => o.type === 'player');
+    let x = camera.x + canvas.width/2;
+    let y = camera.y + canvas.height/2;
+    if(player) {
+        x = player.x + player.w/2;
+        y = player.y + player.h/2;
+    }
+
+    createExplosion(x, y, COLORS.playerMain);
+    showMessage("你死掉了！");
+    setTimeout(() => {
+        resetLevel();
+    }, 800);
+}
+
+function resetLevel() {
+    if (!savedMapData) return;
+    tiles = {};
+    dynamicObjects = [];
+    particles = [];
+    Object.assign(tiles, savedMapData.tiles);
+    savedMapData.entities.forEach(eData => {
+        if (eData.type === 'player') {
+            let p = new Player(eData.x, eData.y);
+            dynamicObjects.push(p);
+            camera.x = p.x - canvas.width/2;
+            camera.y = p.y - canvas.height/2;
+        } else if (eData.type === 'monster') {
+            let m = new Monster(eData.x, eData.y, eData.dir);
+            m.activateTime = Date.now(); // 重置時，延遲計時器更新
+            dynamicObjects.push(m);
+        } else if (eData.type === 'pushbox') {
+            dynamicObjects.push(new PushBlock(eData.x, eData.y));
+        }
+    });
+}
+
+// =========================================
+// 渲染循環
+// =========================================
+
+function drawGrid() {
+    let startCol = Math.floor(camera.x / TILE_SIZE);
+    let endCol = startCol + (canvas.width / TILE_SIZE) + 1;
+    let startRow = Math.floor(camera.y / TILE_SIZE);
+    let endRow = startRow + (canvas.height / TILE_SIZE) + 1;
+
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+
+    if (mode === 'build') {
+        for (let c = startCol; c <= endCol; c++) {
+            ctx.beginPath();
+            ctx.moveTo(c * TILE_SIZE - camera.x, 0);
+            ctx.lineTo(c * TILE_SIZE - camera.x, canvas.height);
+            ctx.stroke();
+        }
+        for (let r = startRow; r <= endRow; r++) {
+            ctx.beginPath();
+            ctx.moveTo(0, r * TILE_SIZE - camera.y);
+            ctx.lineTo(canvas.width, r * TILE_SIZE - camera.y);
+            ctx.stroke();
+        }
+        ctx.fillStyle = 'rgba(0,0,0,0.3)';
+        ctx.fillText("(0,0) 起點", -camera.x + 5, -camera.y + 15);
+    }
+
+    for (let key in tiles) {
+        let type = tiles[key];
+        let pos = getGridFromKey(key);
+        let screenX = pos.c * TILE_SIZE - camera.x;
+        let screenY = pos.r * TILE_SIZE - camera.y;
+
+        if (screenX < -TILE_SIZE || screenX > canvas.width || screenY < -TILE_SIZE || screenY > canvas.height) continue;
+        
+        // 檢查上方是否有方塊
+        let aboveKey = getKey(pos.c, pos.r - 1);
+        let isGrassBlocked = tiles.hasOwnProperty(aboveKey);
+
+        drawTileGraphic(ctx, type, screenX, screenY, TILE_SIZE, TILE_SIZE, isGrassBlocked);
+    }
+}
+
+function drawPreview() {
+    if (mode !== 'build' || currentTool === 'eraser') return;
+
+    let mx = lastMousePos.x + camera.x;
+    let my = lastMousePos.y + camera.y;
+    let c = Math.floor(mx / TILE_SIZE);
+    let r = Math.floor(my / TILE_SIZE);
+    
+    let x = c * TILE_SIZE;
+    let y = r * TILE_SIZE;
+
+    // 檢查預覽方塊的上方是否有方塊
+    let aboveKey = getKey(c, r - 1);
+    let isGrassBlocked = tiles.hasOwnProperty(aboveKey);
+
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    
+    if (['player', 'monster'].includes(currentTool)) {
+        if (currentTool === 'player') {
+            let tempPlayer = new Player(x, y);
+            tempPlayer.isGrounded = true; 
+            tempPlayer.x = x - camera.x;
+            tempPlayer.y = y - camera.y;
+            tempPlayer.draw(ctx);
+        } else if (currentTool === 'monster') {
+            ctx.fillStyle = COLORS.monster;
+            ctx.translate(x - camera.x, y - camera.y);
+            ctx.beginPath();
+            ctx.moveTo(0, TILE_SIZE);
+            ctx.quadraticCurveTo(TILE_SIZE/2, 0, TILE_SIZE, TILE_SIZE);
+            ctx.fill();
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Arial';
+            const ARROWS = ['→', '↓', '←', '↑'];
+            ctx.fillText(ARROWS[buildDir], 20, 30);
+        }
+    } else {
+        let previewType = currentTool;
+        if (currentTool === 'conveyor' || currentTool === 'spring') {
+            previewType = currentTool + '_' + DIR_NAMES[buildDir];
+        }
+        drawTileGraphic(ctx, previewType, x - camera.x, y - camera.y, TILE_SIZE, TILE_SIZE, isGrassBlocked);
+    }
+    
+    ctx.restore();
+    
+    ctx.strokeStyle = '#4caf50';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x - camera.x, y - camera.y, TILE_SIZE, TILE_SIZE);
+}
+
+function updateCamera() {
+    if (mode === 'build') {
+        const CAM_SPEED = 15;
+        if (keys.ArrowLeft || keys.KeyA) camera.x -= CAM_SPEED;
+        if (keys.ArrowRight || keys.KeyD) camera.x += CAM_SPEED;
+        if (keys.ArrowUp || keys.KeyW) camera.y -= CAM_SPEED;
+        if (keys.ArrowDown || keys.KeyS) camera.y += CAM_SPEED;
+    }
+}
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (mode === 'play') {
+        dynamicObjects = dynamicObjects.filter(o => !o.toRemove);
+        dynamicObjects.forEach(o => o.update());
+
+        updatePhysics();
+
+        particles = particles.filter(p => p.life > 0);
+        particles.forEach(p => p.update());
+
+        const player = dynamicObjects.find(o => o.type === 'player');
+        if (player) {
+            let targetX = player.x + player.w/2 - canvas.width/2;
+            let targetY = player.y + player.h/2 - canvas.height/2;
+            camera.x += (targetX - camera.x) * 0.1;
+            camera.y += (targetY - camera.y) * 0.1;
+        }
+    } else {
+        // 建造模式下的鏡頭更新
+        updateCamera();
+    }
+
+    drawGrid();
+
+    if (mode === 'build') {
+        drawPreview();
+    }
+
+    ctx.save();
+    ctx.translate(-camera.x, -camera.y);
+    
+    dynamicObjects.forEach(obj => obj.draw(ctx));
+    particles.forEach(p => p.draw(ctx));
+    ctx.restore();
+
+    requestAnimationFrame(gameLoop);
+}
+
+// =========================================
+// 交互與控制
+// =========================================
+
+function toggleMode() {
+    const btn = document.getElementById('mode-switch');
+    const toolbar = document.getElementById('toolbar');
+    const mobileControls = document.getElementById('mobile-controls');
+
+    if (mode === 'build') {
+        let hasPlayer = dynamicObjects.some(e => e.type === 'player');
+
+        if (!hasPlayer) {
+            showMessage("必須放置一個主角才能開始！");
+            return;
+        }
+
+        savedMapData = {
+            tiles: {...tiles},
+            entities: dynamicObjects.map(o => ({type: o.type, x: o.x, y: o.y, dir: o.dir}))
+        };
+
+        mode = 'play';
+        
+        // 切換到 Play 時，重置怪物的啟動時間
+        dynamicObjects.forEach(o => {
+            if(o.type === 'monster') o.activateTime = Date.now();
+        });
+
+        btn.innerHTML = '🔨';
+        btn.classList.add('playing');
+        toolbar.classList.add('hidden'); 
+        mobileControls.classList.add('active');
+        showMessage("遊玩模式開始！");
+
+    } else {
+        mode = 'build';
+        btn.innerHTML = '▶️';
+        btn.classList.remove('playing');
+        toolbar.classList.remove('hidden'); 
+        mobileControls.classList.remove('active');
+        
+        resetLevel();
+        
+        dynamicObjects.forEach(o => { o.vx = 0; o.vy = 0; });
+        const p = dynamicObjects.find(o => o.type === 'player');
+        if(p) {
+            camera.x = p.x - canvas.width/2;
+            camera.y = p.y - canvas.height/2;
+        }
+    }
+}
+
+function selectTool(tool) {
+    currentTool = tool;
+    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+    const buttons = document.querySelectorAll('.tool-btn');
+    buttons.forEach(btn => {
+        if(btn.title.includes(toolToName(tool))) btn.classList.add('active');
+    });
+    if(event && event.currentTarget) {
+        buttons.forEach(b => b.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    }
+}
+
+function toolToName(tool) {
+    const map = {
+        'ground': '方塊', 'player': '主角', 'spike': '尖刺',
+        'conveyor': '輸送帶', 'spring': '跳板', 'pushbox': '推動',
+        'monster': '怪物', 'eraser': '橡皮擦'
+    };
+    return map[tool] || tool;
+}
+
+function toggleBuildDir() {
+    buildDir = (buildDir + 1) % 4; // 0->1->2->3->0
+    
+    const btn = document.getElementById('rotate-btn');
+    const ARROWS = ['➡️', '⬇️', '⬅️', '⬆️'];
+    btn.innerHTML = ARROWS[buildDir];
+    
+    btn.style.transform = 'scale(1.2)';
+    setTimeout(() => btn.style.transform = 'scale(1)', 100);
+    
+    const NAMES = ['右', '下', '左', '上'];
+    showMessage(`方向: ${NAMES[buildDir]}`);
+}
+
+function showMessage(msg) {
+    const el = document.getElementById('message');
+    el.innerText = msg;
+    el.style.opacity = 1;
+    setTimeout(() => el.style.opacity = 0, 2000);
+}
+
+let isMouseDown = false;
+
+canvas.addEventListener('mousedown', e => {
+    isMouseDown = true;
+    lastMousePos = { x: e.clientX, y: e.clientY };
+    if (mode === 'build') handleBuildClick(e.clientX, e.clientY, false);
+});
+
+canvas.addEventListener('mousemove', e => {
+    lastMousePos = { x: e.clientX, y: e.clientY }; 
+    if (isMouseDown && mode === 'build') {
+        handleBuildClick(e.clientX, e.clientY, true);
+    }
+});
+
+canvas.addEventListener('mouseup', () => isMouseDown = false);
+
+function handleBuildClick(screenX, screenY, isDragging) {
+    let worldX = screenX + camera.x;
+    let worldY = screenY + camera.y;
+    
+    let c = Math.floor(worldX / TILE_SIZE);
+    let r = Math.floor(worldY / TILE_SIZE);
+    let key = getKey(c, r);
+
+    // Check if trying to place tile or entity
+    let isEntityTool = ['player', 'monster', 'pushbox'].includes(currentTool);
+
+    if (currentTool === 'eraser') {
+        delete tiles[key];
+        dynamicObjects = dynamicObjects.filter(o => {
+            let grid = o.getGridPos();
+            return !(grid.c === c && grid.r === r);
+        });
+    } 
+    else if (isEntityTool) {
+        // 放置實體邏輯 (不支援拖曳，或可考慮支援)
+        if (!isDragging || currentTool === 'eraser') { // 實體不建議拖曳放置，容易重疊
+            if (isDragging) return;
+
+            // 1. 清除該格子的所有實體 (避免重疊)
+            dynamicObjects = dynamicObjects.filter(o => {
+                let grid = o.getGridPos();
+                return !(grid.c === c && grid.r === r);
+            });
+
+            // 2. 清除該格子的方塊 (互斥邏輯：有了實體就不能有方塊)
+            if (tiles[key]) {
+                delete tiles[key];
+            }
+
+            // 3. 放置新實體
+            if (currentTool === 'player') {
+                // 移除場上其他主角 (唯一性)
+                dynamicObjects = dynamicObjects.filter(o => o.type !== 'player');
+                let p = new Player(c * TILE_SIZE, r * TILE_SIZE);
+                dynamicObjects.push(p);
+            }
+            else if (currentTool === 'monster') {
+                let mDir = (buildDir === 2) ? -1 : 1; 
+                let m = new Monster(c * TILE_SIZE, r * TILE_SIZE, mDir);
+                dynamicObjects.push(m);
+            }
+            else if (currentTool === 'pushbox') {
+                dynamicObjects.push(new PushBlock(c * TILE_SIZE, r * TILE_SIZE));
+            }
+        }
+    } 
+    else {
+        // 放置方塊邏輯
+        
+        // 1. 清除該格子的實體 (互斥邏輯：有了方塊就不能有實體)
+        dynamicObjects = dynamicObjects.filter(o => {
+            let grid = o.getGridPos();
+            return !(grid.c === c && grid.r === r);
+        });
+
+        // 2. 放置/旋轉方塊
+        if (!isDragging && (currentTool === 'conveyor' || currentTool === 'spring') && tiles[key] && tiles[key].startsWith(currentTool)) {
+             let currentDirStr = tiles[key].split('_')[1] || 'right';
+             let currentIdx = DIR_NAMES.indexOf(currentDirStr);
+             let nextIdx = (currentIdx + 1) % 4;
+             tiles[key] = currentTool + '_' + DIR_NAMES[nextIdx];
+        } else {
+             let type = currentTool;
+             if (currentTool === 'conveyor' || currentTool === 'spring') {
+                 type = currentTool + '_' + DIR_NAMES[buildDir];
+             }
+             tiles[key] = type;
+        }
+    }
+}
+
+window.addEventListener('keydown', e => {
+    if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
+    
+    if (mode === 'play') {
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+            const p = dynamicObjects.find(o => o.type === 'player');
+            if (p) p.jump();
+        }
+    } else {
+        if (e.code === 'KeyR') {
+            toggleBuildDir();
+        }
+    }
+});
+
+window.addEventListener('keyup', e => {
+    if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
+});
+
+const btnLeft = document.getElementById('btn-left');
+const btnRight = document.getElementById('btn-right');
+const btnJump = document.getElementById('btn-jump');
+
+btnLeft.addEventListener('touchstart', (e) => { e.preventDefault(); touchInputs.left = true; });
+btnLeft.addEventListener('touchend', (e) => { e.preventDefault(); touchInputs.left = false; });
+
+btnRight.addEventListener('touchstart', (e) => { e.preventDefault(); touchInputs.right = true; });
+btnRight.addEventListener('touchend', (e) => { e.preventDefault(); touchInputs.right = false; });
+
+btnJump.addEventListener('touchstart', (e) => { 
+    e.preventDefault(); 
+    touchInputs.jump = true;
+    const p = dynamicObjects.find(o => o.type === 'player');
+    if (p) p.jump();
+});
+btnJump.addEventListener('touchend', (e) => { e.preventDefault(); touchInputs.jump = false; });
+
+
+function initWorld() {
+    tiles = {};
+    dynamicObjects = [];
+    camera.x = -canvas.width / 2 + 300;
+    camera.y = -canvas.height / 2 + 300;
+    currentTool = 'ground';
+    showMessage("請放置主角和方塊來開始！(按 R 旋轉)");
+}
+
+initWorld();
+gameLoop();
+
+</script>
+</body>
+</html>
